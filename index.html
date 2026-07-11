@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOrE20</title>
+    <style>
+        /* ---- RESET & BASE ---- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            padding: 20px;
+        }
+
+        /* ---- CARD CONTAINER ---- */
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 32px;
+            padding: 50px 45px;
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        /* ---- PROFILE PICTURE ---- */
+        .avatar {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            color: white;
+            font-weight: 600;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* ---- HEADINGS ---- */
+        h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 16px;
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+
+        /* ---- DIVIDER ---- */
+        .divider {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            margin: 0 auto 28px;
+            border-radius: 10px;
+        }
+
+        /* ---- LINKS SECTION (EDIT THIS PART) ---- */
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.07);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 17px;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .link-item:hover {
+            background: rgba(255, 255, 255, 0.14);
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ---- ICON EMOJI (optional) ---- */
+        .link-icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        /* ---- SOCIAL ICON ROW (optional) ---- */
+        .social-row {
+            margin-top: 32px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .social-link {
+            color: rgba(255, 255, 255, 0.4);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+            padding: 6px 12px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .social-link:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* ---- RESPONSIVE ---- */
+        @media (max-width: 480px) {
+            .card {
+                padding: 32px 22px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .link-item {
+                font-size: 15px;
+                padding: 14px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+
+        <img src="https://github.com/JOrE20.png" alt="JOrE20" class="avatar">
+
+        <h1>JOrE20</h1>
+        <p class="subtitle">Developer &amp; Creator</p>
+
+        <div class="divider"></div>
+        <div class="links">
+
+        <p class="subtitle">Pages comming soon!</p>
+        </div>
+
+        <div class="social-row">
+            <a href="mailto:joresoftwares@gmail.com" class="social-link">✉ Email</a>
+            <a href="https://github.com/JOrE20" class="social-link">GitHub</a>
+            <a href="https://perchance.org/jore" class="social-link">🎲 Perchance</a>
+        </div>
+
+        <p style="color: rgba(255,255,255,0.2); font-size: 13px; margin-top: 28px; letter-spacing: 0.3px;">
+            © 2026
+        </p>
+
+    </div>
+
+</body>
+</html>
