@@ -1,2 +1,2 @@
 # JOrE20 website source
-View the website: [JOrE20's website](jore20.github.io).
+View the website: [JOrE20's website](https://jore20.github.io).
