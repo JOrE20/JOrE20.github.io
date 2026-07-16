@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Code Generator</title>
+	<link rel="stylesheet" href="../style.css">
+	<link rel="stylesheet" href="pcg-styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Procedural Code Generator</h1>
+        <div class="subtitle">DAG-based callstack with complexity control</div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Total Functions</label>
+                <input type="number" id="totalFuncs" value="8" min="2" max="50">
+            </div>
+            <div class="control-group">
+                <label>Leaf Functions</label>
+                <input type="number" id="leafCount" value="3" min="1" max="49">
+            </div>
+            <div class="control-group">
+                <label>Max Call Depth</label>
+                <input type="number" id="maxDepth" value="3" min="1" max="10">
+            </div>
+            <div class="control-group">
+                <label>Seed (optional)</label>
+                <input type="text" id="seedInput" placeholder="random">
+            </div>
+            
+            <div class="param-row">
+                <div class="control-group">
+                    <label>Min Args</label>
+                    <input type="number" id="minArgs" value="0" min="0" max="5">
+                </div>
+                <div class="control-group">
+                    <label>Max Args</label>
+                    <input type="number" id="maxArgs" value="3" min="0" max="5">
+                </div>
+            </div>
+            
+            <div class="param-row">
+                <div class="control-group">
+                    <label>Min Body Lines</label>
+                    <input type="number" id="minBodyLines" value="1" min="1" max="10">
+                </div>
+                <div class="control-group">
+                    <label>Max Body Lines</label>
+                    <input type="number" id="maxBodyLines" value="3" min="1" max="10">
+                </div>
+            </div>
+            
+            <div class="param-row">
+                <div class="control-group">
+                    <label>Min Vars</label>
+                    <input type="number" id="minVars" value="0" min="0" max="5">
+                </div>
+                <div class="control-group">
+                    <label>Max Vars</label>
+                    <input type="number" id="maxVars" value="2" min="0" max="5">
+                </div>
+            </div>
+            
+            <div class="param-row">
+                <div class="control-group">
+                    <label>Min Complexity</label>
+                    <input type="number" id="minComplexity" value="2">
+                </div>
+                <div class="control-group">
+                    <label>Max Complexity</label>
+                    <input type="number" id="maxComplexity" value="5">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Options</label>
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="allowDiscarded" checked>
+                    <span>Allow Discarded Parameters</span>
+                </div>
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="allowDiscardedVars">
+                    <span>Allow Discarded Variables</span>
+                </div>
+            </div>
+            
+            <button class="btn" id="generateBtn">🔮 Generate</button>
+        </div>
+
+        <div class="action-row">
+            <div class="btn-group">
+                <button class="btn btn-info" id="getValueBtn">📊 Get Function Value</button>
+                <button class="btn btn-success" id="testBtn">✅ Test All Functions</button>
+                <button class="btn btn-purple" id="runAllBtn">▶️ Run All Functions</button>
+                <button class="btn btn-warning" id="downloadBtn">💾 Download Code</button>
+            </div>
+            <div class="separator-input">
+                <input type="text" id="separatorInput" value=", " placeholder="Separator">
+            </div>
+            <button class="btn" id="getNamesBtn">📋 Get Function Names</button>
+            <button class="btn toggle-strings-btn" id="toggleStringsBtn">📝 Toggle Strings</button>
+        </div>
+
+        <div class="output-section">
+            <div class="output-header">
+                <span>Generated Code</span>
+                <span class="count" id="funcCount">0 functions</span>
+            </div>
+            <div class="output-container" id="outputContainer">
+                <button class="copy-btn" id="copyBtn">📋 Copy</button>
+                <pre id="output"><span class="comment">// Click "Generate" to create procedural code</span></pre>
+            </div>
+            
+            <div id="stringsCardContainer" style="display:none;">
+                <div class="strings-card" id="stringsCard">
+                    <h4>📝 Strings Used in Generated Code</h4>
+                    <ul id="stringsList"></ul>
+                </div>
+            </div>
+            
+            <div class="stats" id="stats">
+                <span>Depth: <span id="depthStat">0</span></span>
+                <span>Leaf: <span id="leafStat">0</span></span>
+                <span>Non-leaf: <span id="nonLeafStat">0</span></span>
+                <span>Params used: <span id="paramUsageStat">N/A</span></span>
+                <span>Avg body lines: <span id="avgBodyLines">0</span></span>
+                <span>Avg vars: <span id="avgVars">0</span></span>
+                <span>Avg complexity: <span id="avgComplexity">0</span></span>
+            </div>
+            <div id="resultContainer"></div>
+            <div id="errorContainer"></div>
+        </div>
+		
+		    <p style="color: #8a9aa8; font-size: 13px; margin-top: 24px; text-align: center; letter-spacing: 0.2px;" id=copyright>
+                © ???? · JOrE20
+            </p>
+    </div>
+
+    <script src="vocab.js"></script>
+    <script>
+	    // ============================================================
+		// Copyright update
+		// ============================================================
+		let updateCopyright = () => document.getElementById("copyright").textContent = `© ${new Date().getFullYear()} · JOrE20`;
+		updateCopyright();
+		setInterval(updateCopyright, 1000);
+		
+        // ============================================================
+        // 1. RNG: xorshift32 + Java-style hash seeding
+        // ============================================================
+		
+        class SeedRandom {
+            constructor(seed) {
+                this.seed = this.hashSeed(seed || 12345);
+                for (let i = 0; i < 25; i++) this.next();
+            }
+
+            hashSeed(seed) {
+                const str = String(seed);
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                    hash |= 0;
+                }
+                return Math.abs(hash) || 1;
+            }
+
+            next() {
+                let x = this.seed;
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                this.seed = x >>> 0;
+                return this.seed / 4294967296;
+            }
+
+            nextInt(min, max) {
+                return Math.floor(this.next() * (max - min + 1)) + min;
+            }
+
+            pick(arr) {
+                return arr[this.nextInt(0, arr.length - 1)];
+            }
+        }
+
+        function isRegexValid(x) {
+		    try {
+			    eval(x);
+				return true;
+			} catch (e) {
+			    return false;
+			}
+		}
+		
+		function generateRegex2(rng) {
+		    let regex = '/' + VOCAB.generateComplexString(rng) + '/';
+	        for (let flag of "dmsuy") if (rng.next() < 0.05) regex += flag;
+			for (let flag of "gi") if (rng.next() < 0.85) regex += flag;
+			return regex;
+		}
+		
+		function generateRegex(rng) {
+		    let regex;
+		    do {
+			    regex = generateRegex2(rng);
+		    } while (!isRegexValid(regex));
+			return regex;
+		}
+
+        // ============================================================
+        // 2. Generator Configuration
+        // ============================================================
+        const OPERATORS = ['+', '-', '*', '/', '%', '^', '&', '|', '||', '&&', '??'];
+		const UNARY_OPERATORS = ['-', '~', '+'];
+        const MATH_FUNCS = ['Math.abs', 'Math.acos', 'Math.acosh', 'Math.asin', 'Math.asinh', 'Math.atan', 'Math.atanh', 'Math.atan2', 'Math.ceil', 'Math.cbrt', 'Math.expm1', 'Math.clz32', 'Math.cos', 'Math.cosh', 'Math.exp', 'Math.floor', 'Math.fround', 'Math.hypot', 'Math.imul', 'Math.log', 'Math.log1p', 'Math.log2', 'Math.log10', 'Math.max', 'Math.min', 'Math.pow', 'Math.random', 'Math.round', 'Math.sign', 'Math.sin', 'Math.sinh', 'Math.sqrt', 'Math.tan', 'Math.tanh', 'Math.trunc', 'Math.f16round'];
+        const MATH_CONSTS = ['Math.PI', 'Math.E', 'Math.LN2', 'Math.LOG2E', 'Math.LOG10E', 'Math.SQRT2', 'Math.SQRT1_2'];
+        const ARRAY_METHODS = ['length', 'at', 'DIRECT_AT', 'fill', 'flat', 'includes', 'indexOf', 'hasOwnProperty', 'push', 'pop', 'shift', 'unshift', 'join', 'slice', 'concat'];
+        const STRING_METHODS = ['length', 'includes', 'charAt', 'indexOf', 'DIRECT_AT', 'charCodeAt', 'charCodeAt()', 'codePointAt', 'concat', 'endsWith', 'startsWith', 'padEnd', 'padStart', 'indexOf', 'slice', 'trim'];
+        const REGEX_METHODS = ['test', 'match', 'replace', 'exec', 'search'];
+
+        // ============================================================
+        // 3. Expression Generator
+        // ============================================================
+        let extractedStrings = [];
+
+        function generateTerminal(rng, availableVars, depNames = []) {
+            const choices = [
+                // Number
+                () => {
+                    if (rng.next() < 0.7) {
+                        return VOCAB.generateNumber(rng);
+                    } else {
+                        return String(rng.nextInt(1, 100));
+                    }
+                },
+                // Variable reference
+                () => {
+                    if (availableVars.length === 0) return VOCAB.generateNumber(rng);
+                    return rng.pick(availableVars);
+                },
+                // Math constant
+                () => rng.pick(MATH_CONSTS),
+                // Array literal
+                () => {
+                    const len = rng.nextInt(2, 6);
+                    const arr = Array.from({ length: len }, () => parseInt(VOCAB.generateNumber(rng)));
+                    const method = rng.pick(ARRAY_METHODS);
+                    if (method === 'length') return `[${arr.join(', ')}].length`;
+                    if (method === 'join') {
+                        const str = VOCAB.generateString(rng);
+                        extractedStrings.push(str);
+                        return `[${arr.join(', ')}].join('${str}')`;
+                    }
+                    if (method === 'slice') {
+                        const start = rng.nextInt(0, Math.floor(len / 2));
+                        const end = rng.nextInt(start + 1, len);
+                        return `[${arr.join(', ')}].slice(${start}, ${end})`;
+                    }
+					// Intentionally chance to use incorrect/meaningless types for fun
+					if (method === 'DIRECT_AT') return `[${arr.join(', ')}][${rng.nextInt(0, len)}]`;
+					if (method === 'at') return `[${arr.join(', ')}].at(${rng.nextInt(0, len)})`;
+					if (method === 'fill') return `[${arr.join(', ')}].fill(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'flat') return `[${arr.join(', ')}].flat(${rng.next() < 0.8 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'includes') return `[${arr.join(', ')}].includes(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'indexOf') return `[${arr.join(', ')}].indexOf(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'hasOwnProperty') return `[${arr.join(', ')}].hasOwnProperty(${'"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'push') return `[${arr.join(', ')}].push(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'pop') return `[${arr.join(', ')}].pop(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'shift') return `[${arr.join(', ')}].shift(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'unshift') return `[${arr.join(', ')}].unshift(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+                    return `[${arr.join(', ')}]`;
+                },
+				// String literal
+				() => {
+                    const str = '"' + VOCAB.generateComplexString(rng) + '"';
+                    const method = rng.pick(STRING_METHODS);
+                    if (method === 'length') return `${str}.length`;
+                    if (method === 'slice') {
+                        const start = rng.nextInt(0, Math.floor(str.length / 2));
+                        const end = rng.nextInt(start + 1, str.length);
+                        return `${str}.slice(${start}, ${end})`;
+                    }
+					// Intentionally chance to use incorrect/meaningless types for fun, just like for arrays
+					if (method === 'DIRECT_AT') return `${str}[${rng.nextInt(0, str.length)}]`;
+					if (method === 'charAt') return `${str}.charAt(${rng.nextInt(0, str.length)})`;
+					if (method === 'charCodeAt') return `${str}.charCodeAt(${rng.nextInt(0, str.length)})`;
+					if (method === 'codePointAt') return `${str}.codePointAt(${rng.nextInt(0, str.length)})`;
+					if (method === 'charCodeAt()') return `${str}.charCodeAt()`;
+					if (method === 'includes') return `${str}.includes(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'indexOf') return `${str}.indexOf(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'concat') return `${str}.concat(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'endsWith') return `${str}.endsWith(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'startsWith') return `${str}.startsWith(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'padEnd') return `${str}.padEnd(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'}, ${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'padStart') return `${str}.padStart(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'}, ${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;
+					if (method === 'trim') return `${str}.trim(${rng.next() < 0.5 ? VOCAB.generateNumber(rng) : '"' + VOCAB.generateComplexString(rng) + '"'})`;					
+                    return str;
+                },
+			    // Regex literal
+				() => {
+                    let regex = generateRegex(rng);
+					let method = rng.pick(REGEX_METHODS);
+                    const str = "'" + VOCAB.generateComplexString(rng) + "'";
+
+					// Just like strings, intentional incorrect types
+					if (method === 'test') return `${regex}.test(${str})`;
+					if (method === 'match') return `${str}.match(${regex})`;
+					if (method === 'replace') return `${str}.replace(${regex}, ${"'" + VOCAB.generateComplexString(rng) + "'"})`;
+					if (method === 'exec') return `${regex}.exec(${str})`;
+					if (method === 'search') return `${str}.search(${regex})`;		
+                    return regex;
+                },
+                // String literal
+                () => {
+                    const str = VOCAB.generateString(rng);
+                    extractedStrings.push(str);
+                    return `'${str}'`;
+                },
+                // Bitwise operation
+                () => {
+                    const left = rng.nextInt(1, 50);
+                    const right = rng.nextInt(1, 29);
+                    const op = rng.pick(['<<', '>>', '>>>']);
+                    return `(${left} ${op} ${right})`;
+                }
+            ];
+
+            // If we have dependency names, occasionally call them (with args)
+            if (depNames && depNames.length > 0 && rng.next() < 0.3) {
+                const funcName = rng.pick(depNames);
+                const numArgs = rng.nextInt(0, Math.min(3, availableVars.length + 2));
+                const args = [];
+                for (let i = 0; i < numArgs; i++) {
+                    if (availableVars.length > 0 && rng.next() < 0.5) {
+                        args.push(rng.pick(availableVars));
+                    } else {
+                        args.push(VOCAB.generateNumber(rng));
+                    }
+                }
+                return `${funcName}(${args.join(', ')})`;
+            }
+
+            return rng.pick(choices)();
+        }
+
+        function generateExpression(rng, availableVars, depNames = [], depth = 0, complexity = 0, minComplexity = 1, maxComplexity = 4) {
+            const maxDepth = 4;
+            
+            // Check if we've reached desired complexity
+            const complexityMet = complexity >= minComplexity;
+            const complexityMaxed = complexity >= maxComplexity;
+            const depthMaxed = depth >= maxDepth;
+            
+            // If we've reached max depth or max complexity, generate terminal
+            if (depthMaxed || complexityMaxed) {
+                return generateTerminal(rng, availableVars, depNames);
+            }
+            
+            // If complexity is met but we can still add more, sometimes stop
+            if (complexityMet && rng.next() < 0.25) {
+                return generateTerminal(rng, availableVars, depNames);
+            }
+
+            const patterns = [
+                // Binary operation
+                () => {
+                    const left = generateExpression(rng, availableVars, depNames, depth + 1, complexity + 1, minComplexity, maxComplexity);
+                    const right = generateExpression(rng, availableVars, depNames, depth + 1, complexity + 1, minComplexity, maxComplexity);
+                    const op = rng.pick(OPERATORS);
+                    return `(${left} ${op} ${right})`;
+                },
+				// Unary operation
+                () => {
+                    const value = generateExpression(rng, availableVars, depNames, depth + 1, complexity + 1, minComplexity, maxComplexity);
+                    const op = rng.pick(UNARY_OPERATORS);
+                    return `${op}(${value})`;
+                },				
+                // Math function call
+                () => {
+                    const func = rng.pick(MATH_FUNCS);
+                    const arg = generateExpression(rng, availableVars, depNames, depth + 1, complexity + 1, minComplexity, maxComplexity);
+                    return `${func}(${arg})`;
+                },
+                // Terminal
+                () => generateTerminal(rng, availableVars, depNames),
+                // Ternary
+                () => {
+                    const cond = generateExpression(rng, availableVars, depNames, depth + 1, complexity + 1, minComplexity, maxComplexity);
+                    const t = generateTerminal(rng, availableVars, depNames);
+                    const f = generateTerminal(rng, availableVars, depNames);
+                    return `(${cond} ? ${t} : ${f})`;
+                }
+            ];
+
+            return rng.pick(patterns)();
+        }
+
+        // ============================================================
+        // 4. DAG-based Callstack Management
+        // ============================================================
+        function buildFunctionDAG(totalFuncs, leafCount, maxDepth, rng) {
+            const nonLeafCount = totalFuncs - leafCount;
+            
+            const depths = [];
+            for (let i = 0; i < nonLeafCount; i++) {
+                let depth;
+                if (i < maxDepth && i < nonLeafCount) {
+                    depth = i + 1;
+                } else {
+                    depth = rng.nextInt(1, maxDepth);
+                }
+                depth = Math.min(depth, maxDepth);
+                depths.push(depth);
+            }
+            
+            for (let i = depths.length - 1; i > 0; i--) {
+                const j = rng.nextInt(0, i);
+                [depths[i], depths[j]] = [depths[j], depths[i]];
+            }
+            
+            const nodes = [];
+            
+            for (let i = 0; i < leafCount; i++) {
+                nodes.push({
+                    id: i,
+                    name: null,
+                    depth: 0,
+                    isLeaf: true,
+                    deps: []
+                });
+            }
+            
+            let nodeId = leafCount;
+            for (let i = 0; i < nonLeafCount; i++) {
+                const depth = depths[i];
+                nodes.push({
+                    id: nodeId++,
+                    name: null,
+                    depth: depth,
+                    isLeaf: false,
+                    deps: []
+                });
+            }
+            
+            for (let i = leafCount; i < nodes.length; i++) {
+                const node = nodes[i];
+                const currentDepth = node.depth;
+                
+                const availableTargets = nodes.filter(n => n.depth < currentDepth);
+                
+                if (availableTargets.length === 0) {
+                    const leafTargets = nodes.filter(n => n.isLeaf);
+                    if (leafTargets.length > 0) {
+                        node.deps.push(leafTargets[rng.nextInt(0, leafTargets.length - 1)].id);
+                    }
+                } else {
+                    const numDeps = rng.nextInt(1, Math.min(3, availableTargets.length));
+                    const shuffled = [...availableTargets];
+                    for (let j = shuffled.length - 1; j > 0; j--) {
+                        const k = rng.nextInt(0, j);
+                        [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+                    }
+                    for (let j = 0; j < numDeps; j++) {
+                        node.deps.push(shuffled[j % shuffled.length].id);
+                    }
+                }
+            }
+            
+            return nodes;
+        }
+
+        // ============================================================
+        // 5. Function Generator
+        // ============================================================
+        function generateFunctionFromDAG(rng, node, allNodes, minArgs, maxArgs, allowDiscarded, allowDiscardedVars, minBodyLines, maxBodyLines, minVars, maxVars, minComplexity, maxComplexity) {
+            let paramCount;
+            let params = [];
+            let paramNames = [];
+            let usedParamNames = new Set();
+            let bodyLines = [];
+            let body;
+            let locals = [];
+            let localNames = [];
+            let bodyCode = [];
+            let allVars = [];
+            let attempts = 0;
+            const maxAttempts = 1000;
+
+            const name = node.name;
+            const isLeaf = node.isLeaf;
+            const deps = node.deps;
+            
+            const depNames = deps.map(id => allNodes.find(n => n.id === id).name);
+
+            do {
+                attempts++;
+                paramCount = rng.nextInt(minArgs, maxArgs);
+                params = [];
+                paramNames = [];
+                usedParamNames = new Set();
+
+                for (let i = 0; i < paramCount; i++) {
+                    const p = VOCAB.generateParamName(rng, usedParamNames);
+                    params.push(p);
+                    paramNames.push(p);
+                }
+
+                locals = [];
+                localNames = [];
+                const usedLocalNames = new Set();
+
+                const numLocals = rng.nextInt(minVars, maxVars);
+
+                for (let i = 0; i < numLocals; i++) {
+                    let vname = VOCAB.generateVarName(rng, usedLocalNames);
+					if (paramNames.includes(vname)) vname += rng.nextInt(1, 99).toString();
+                    const init = generateTerminal(rng, [...paramNames, ...localNames], depNames);
+                    locals.push(`let ${vname} = ${init};`);
+                    localNames.push(vname);
+                }
+
+                const available = [...paramNames, ...localNames];
+
+                const numBodyLines = rng.nextInt(minBodyLines, maxBodyLines);
+                bodyLines = [];
+
+                for (let i = 0; i < numBodyLines; i++) {
+                    if (isLeaf) {
+                        bodyLines.push(generateExpression(rng, available, depNames, 0, 0, minComplexity, maxComplexity));
+                    } else {
+                        if (depNames.length === 0) {
+                            bodyLines.push(generateExpression(rng, available, depNames, 0, 0, minComplexity, maxComplexity));
+                        } else {
+                            // Use expression with complexity for non-leaf too, but include function calls
+                            const expr = generateExpression(rng, available, depNames, 0, 0, minComplexity, maxComplexity);
+                            bodyLines.push(expr);
+                        }
+                    }
+                }
+
+                bodyCode = [];
+                allVars = [...localNames];
+                
+                for (let i = 0; i < bodyLines.length - 1; i++) {
+                    let varName = VOCAB.generateVarName(rng, new Set([...localNames, ...paramNames]));
+					if (paramNames.includes(varName)) varName += rng.nextInt(1, 99).toString();
+                    bodyCode.push(`let ${varName} = ${bodyLines[i]};`);
+                    localNames.push(varName);
+                    allVars.push(varName);
+                }
+                
+                body = bodyLines[bodyLines.length - 1];
+
+                let allParamsUsed = true;
+                if (!allowDiscarded) {
+                    allParamsUsed = paramNames.every(p => body.includes(p) || bodyCode.some(line => line.includes(p)));
+                }
+
+                let allVarsUsed = true;
+                if (!allowDiscardedVars) {
+                    allVarsUsed = allVars.every(v => body.includes(v));
+                }
+
+                if (allowDiscarded && allowDiscardedVars) break;
+                if (allParamsUsed && allVarsUsed) break;
+
+                if (attempts > maxAttempts) {
+                    if (paramNames.length === 0 && allVars.length === 0) break;
+                    let expr = '';
+                    const allNames = [...paramNames, ...allVars];
+                    if (allNames.length > 0) {
+                        expr = allNames[0];
+                        for (let i = 1; i < allNames.length; i++) {
+                            const op = rng.pick(['+', '-', '*', '/']);
+                            expr = `(${expr} ${op} ${allNames[i]})`;
+                        }
+                    } else {
+                        expr = '0';
+                    }
+                    body = expr;
+                    bodyCode = [];
+                    break;
+                }
+
+            } while ((!allowDiscarded || !allowDiscardedVars) && attempts < maxAttempts);
+
+            const paramStr = params.join(', ');
+
+            let bodyParts = [];
+
+            if (locals.length > 0) {
+                bodyParts.push('  ' + locals.join('\n  '));
+            }
+
+            if (bodyCode.length > 0) {
+                bodyParts.push('  ' + bodyCode.join('\n  '));
+            }
+
+            bodyParts.push(`  return ${body};`);
+
+            const bodyStr = bodyParts.length > 0 ? '\n' + bodyParts.join('\n') + '\n' : '';
+
+            const code = `function ${name}(${paramStr}) {${bodyStr}}`;
+
+            const usedParams = paramNames.filter(p => body.includes(p) || bodyCode.some(line => line.includes(p)));
+            const usedVars = allVars.filter(v => body.includes(v));
+
+            // Calculate actual complexity of the final expression
+            const complexityScore = body.split(/[+\-*/%^&|()]/).length + (body.match(/Math\.\w+/g) || []).length * 2;
+
+            return {
+                code: code,
+                usedAllParams: paramNames.length === 0 || usedParams.length === paramNames.length,
+                usedAllVars: allVars.length === 0 || usedVars.length === allVars.length,
+                paramCount: paramCount,
+                paramNames: paramNames,
+                name: name,
+                bodyLines: bodyLines.length,
+                varsUsed: locals.length + bodyCode.length,
+                totalVars: allVars.length,
+                usedParams: usedParams.length,
+                totalParams: paramNames.length,
+                usedVars: usedVars.length,
+                allVars: allVars,
+                depth: node.depth,
+                deps: depNames,
+                complexity: complexityScore
+            };
+        }
+
+        // ============================================================
+        // 6. Main Generator
+        // ============================================================
+        let lastGeneratedCode = '';
+        let lastFunctionNames = [];
+        let lastStats = {};
+
+        function generateCode(totalFuncs, leafCount, maxDepth, seed, minArgs, maxArgs, allowDiscarded, allowDiscardedVars, minBodyLines, maxBodyLines, minVars, maxVars, minComplexity, maxComplexity) {
+            if (totalFuncs < 2) throw new Error('Total functions must be at least 2');
+            if (leafCount < 1) throw new Error('Leaf count must be at least 1');
+            if (leafCount >= totalFuncs) throw new Error('Leaf count must be less than total functions');
+            if (maxDepth < 1) throw new Error('Max depth must be at least 1');
+            if (minArgs > maxArgs) throw new Error('Min args cannot be greater than max args');
+            if (minArgs < 0) throw new Error('Min args cannot be negative');
+            if (minBodyLines < 1) throw new Error('Min body lines must be at least 1');
+            if (minBodyLines > maxBodyLines) throw new Error('Min body lines cannot exceed max body lines');
+            if (minVars < 0) throw new Error('Min vars cannot be negative');
+            if (minVars > maxVars) throw new Error('Min vars cannot exceed max vars');
+            if (minComplexity < 1) throw new Error('Min complexity must be at least 1');
+            if (minComplexity > maxComplexity) throw new Error('Min complexity cannot exceed max complexity');
+
+            const rng = new SeedRandom(seed);
+            extractedStrings = [];
+
+            const nodes = buildFunctionDAG(totalFuncs, leafCount, maxDepth, rng);
+            
+            const usedNames = new Set();
+            for (let i = 0; i < nodes.length; i++) {
+                let name;
+                let attempts = 0;
+                do {
+                    name = VOCAB.generateFunctionName(rng);
+                    attempts++;
+                    if (attempts > 10000) name = `func_${i}`;
+                } while (usedNames.has(name));
+                usedNames.add(name);
+                nodes[i].name = name;
+            }
+
+            const functions = [];
+            const functionData = [];
+            let totalParams = 0;
+            let usedParams = 0;
+            let totalBodyLines = 0;
+            let totalVars = 0;
+            let totalComplexity = 0;
+            let maxActualDepth = 0;
+            const allNames = nodes.map(n => n.name);
+
+            const sortedNodes = [...nodes].sort((a, b) => a.depth - b.depth);
+
+            for (const node of sortedNodes) {
+                const result = generateFunctionFromDAG(
+                    rng, node, nodes,
+                    minArgs, maxArgs, allowDiscarded, allowDiscardedVars,
+                    minBodyLines, maxBodyLines, minVars, maxVars,
+                    minComplexity, maxComplexity
+                );
+                functions.push(result.code);
+                totalParams += result.paramCount;
+                if (result.usedAllParams) usedParams += result.paramCount;
+                totalBodyLines += result.bodyLines;
+                totalVars += result.varsUsed;
+                totalComplexity += result.complexity;
+                if (result.depth > maxActualDepth) maxActualDepth = result.depth;
+                functionData.push(result);
+            }
+
+            const paramUsage = totalParams > 0 ? `${usedParams}/${totalParams}` : 'N/A';
+            const avgBodyLines = (totalBodyLines / totalFuncs).toFixed(1);
+            const avgVars = (totalVars / totalFuncs).toFixed(1);
+            const avgComplexity = (totalComplexity / totalFuncs).toFixed(1);
+            const nonLeafCount = totalFuncs - leafCount;
+
+            const header = `// Procedurally generated code. Don't edit manually.\n// Generated with seed: ${seed}\n\n`;
+            const body = functions.join('\n\n');
+            const code = header + body;
+
+            lastGeneratedCode = code;
+            lastFunctionNames = allNames;
+            lastStats = {
+                total: totalFuncs,
+                leaf: leafCount,
+                nonLeaf: nonLeafCount,
+                maxDepth: maxDepth,
+                actualMaxDepth: maxActualDepth,
+                seed: seed,
+                names: allNames,
+                paramUsage: paramUsage,
+                functionData: functionData,
+                avgBodyLines: avgBodyLines,
+                avgVars: avgVars,
+                avgComplexity: avgComplexity,
+                strings: extractedStrings
+            };
+
+            return {
+                code: code,
+                stats: lastStats
+            };
+        }
+
+        // ============================================================
+        // 7. Features
+        // ============================================================
+        function getFunctionValue(functionName) {
+            if (!lastGeneratedCode) {
+                throw new Error('No code generated yet. Click "Generate" first.');
+            }
+            
+            if (!lastFunctionNames.includes(functionName)) {
+                throw new Error(`Function "${functionName}" not found. Available: ${lastFunctionNames.join(', ')}`);
+            }
+
+            try {
+                const fn = new Function(`
+                    ${lastGeneratedCode}
+                    return ${functionName}();
+                `);
+                const startTime = performance.now();
+                const result = fn();
+                const endTime = performance.now();
+                
+                return {
+                    success: true,
+                    functionName: functionName,
+                    result: result,
+                    time: (endTime - startTime).toFixed(2) + 'ms',
+                    type: typeof result
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    functionName: functionName,
+                    error: e.message,
+                    stack: e.stack
+                };
+            }
+        }
+
+        function runAllFunctions() {
+            if (!lastGeneratedCode || lastFunctionNames.length === 0) {
+                throw new Error('No code generated yet. Click "Generate" first.');
+            }
+
+            const results = [];
+
+            for (const name of lastFunctionNames) {
+                const result = getFunctionValue(name);
+                results.push(result);
+            }
+
+            const passed = results.filter(r => r.success).length;
+            const total = results.length;
+
+            let html = `<div class="results-grid">`;
+            for (const r of results) {
+                const statusClass = r.success ? 'success' : 'error';
+                html += `<div class="result-item ${statusClass}">`;
+                html += `<div class="fn-name">${r.functionName}()</div>`;
+                if (r.success) {
+                    html += `<div class="fn-result">→ ${JSON.stringify(r.result)}</div>`;
+                    html += `<div class="fn-time">${r.time} • ${r.type}</div>`;
+                } else {
+                    html += `<div class="fn-error">❌ ${r.error}</div>`;
+                }
+                html += `</div>`;
+            }
+            html += `</div>`;
+            html += `<div style="margin-top:10px;color:#888;font-size:13px;">✅ ${passed}/${total} passed</div>`;
+
+            return {
+                html: html,
+                passed: passed,
+                total: total,
+                results: results
+            };
+        }
+
+        function testAllFunctions() {
+            if (!lastGeneratedCode || lastFunctionNames.length === 0) {
+                throw new Error('No code generated yet. Click "Generate" first.');
+            }
+
+            const results = [];
+            let allPassed = true;
+
+            for (const name of lastFunctionNames) {
+                const result = getFunctionValue(name);
+                results.push(result);
+                if (!result.success) allPassed = false;
+            }
+
+            const passed = results.filter(r => r.success).length;
+            const total = results.length;
+            const totalTime = results.reduce((sum, r) => {
+                if (r.success) return sum + parseFloat(r.time);
+                return sum;
+            }, 0);
+
+            return {
+                allPassed: allPassed,
+                passed: passed,
+                total: total,
+                totalTime: totalTime.toFixed(2) + 'ms',
+                averageTime: (totalTime / passed).toFixed(2) + 'ms',
+                results: results
+            };
+        }
+
+        function getFunctionNames(separator) {
+            if (!lastFunctionNames || lastFunctionNames.length === 0) {
+                throw new Error('No functions generated yet. Click "Generate" first.');
+            }
+            return lastFunctionNames.join(separator || ', ');
+        }
+
+        function downloadCode() {
+            if (!lastGeneratedCode) {
+                throw new Error('No code generated yet. Click "Generate" first.');
+            }
+
+            const blob = new Blob([lastGeneratedCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `generated_code_${Date.now()}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function renderStrings(strings) {
+            const container = document.getElementById('stringsCardContainer');
+            const list = document.getElementById('stringsList');
+            
+            if (!strings || strings.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const unique = [...new Set(strings)];
+            list.innerHTML = unique.map((str, i) => 
+                `<li><span class="string-index">${i + 1}.</span><span class="string-value">"${str}"</span></li>`
+            ).join('');
+            container.style.display = 'block';
+        }
+
+        // ============================================================
+        // 8. UI Handlers
+        // ============================================================
+        const outputEl = document.getElementById('output');
+        const funcCountEl = document.getElementById('funcCount');
+        const depthStatEl = document.getElementById('depthStat');
+        const leafStatEl = document.getElementById('leafStat');
+        const nonLeafStatEl = document.getElementById('nonLeafStat');
+        const paramUsageStatEl = document.getElementById('paramUsageStat');
+        const avgBodyLinesEl = document.getElementById('avgBodyLines');
+        const avgVarsEl = document.getElementById('avgVars');
+        const avgComplexityEl = document.getElementById('avgComplexity');
+        const errorContainer = document.getElementById('errorContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        const copyBtn = document.getElementById('copyBtn');
+
+        function displayResult(message, type) {
+            resultContainer.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function generate() {
+            const total = parseInt(document.getElementById('totalFuncs').value);
+            const leaf = parseInt(document.getElementById('leafCount').value);
+            const maxDepth = parseInt(document.getElementById('maxDepth').value);
+            const minArgs = parseInt(document.getElementById('minArgs').value);
+            const maxArgs = parseInt(document.getElementById('maxArgs').value);
+            const minBodyLines = parseInt(document.getElementById('minBodyLines').value);
+            const maxBodyLines = parseInt(document.getElementById('maxBodyLines').value);
+            const minVars = parseInt(document.getElementById('minVars').value);
+            const maxVars = parseInt(document.getElementById('maxVars').value);
+            const minComplexity = parseInt(document.getElementById('minComplexity').value);
+            const maxComplexity = parseInt(document.getElementById('maxComplexity').value);
+            const allowDiscarded = document.getElementById('allowDiscarded').checked;
+            const allowDiscardedVars = document.getElementById('allowDiscardedVars').checked;
+            const seedInput = document.getElementById('seedInput').value.trim();
+
+            let seed;
+            if (seedInput === '') {
+                seed = Math.floor(Math.random() * 2147483647);
+            } else {
+                const parsed = Number(seedInput);
+                seed = !isNaN(parsed) ? parsed : (() => {
+                    let hash = 0;
+                    for (let i = 0; i < seedInput.length; i++) {
+                        hash = ((hash << 5) - hash) + seedInput.charCodeAt(i);
+                        hash |= 0;
+                    }
+                    return Math.abs(hash) || 1;
+                })();
+            }
+
+            errorContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
+
+            try {
+                const result = generateCode(total, leaf, maxDepth, seed, minArgs, maxArgs, allowDiscarded, allowDiscardedVars, minBodyLines, maxBodyLines, minVars, maxVars, minComplexity, maxComplexity);
+                outputEl.textContent = result.code;
+                funcCountEl.textContent = `${result.stats.total} functions`;
+                depthStatEl.textContent = `${result.stats.maxDepth} (actual: ${result.stats.actualMaxDepth})`;
+                leafStatEl.textContent = result.stats.leaf;
+                nonLeafStatEl.textContent = result.stats.nonLeaf;
+                paramUsageStatEl.textContent = result.stats.paramUsage;
+                avgBodyLinesEl.textContent = result.stats.avgBodyLines;
+                avgVarsEl.textContent = result.stats.avgVars;
+                avgComplexityEl.textContent = result.stats.avgComplexity;
+                
+                renderStrings(result.stats.strings);
+                displayResult(`✅ Code generated successfully! Max depth: ${result.stats.maxDepth}, Actual: ${result.stats.actualMaxDepth}, Avg complexity: ${result.stats.avgComplexity}`, 'success');
+            } catch (e) {
+                errorContainer.innerHTML = `<div class="error">❌ ${e.message}</div>`;
+                outputEl.textContent = '// Error generating code';
+            }
+        }
+
+        // Toggle strings visibility
+        document.getElementById('toggleStringsBtn').addEventListener('click', () => {
+            const container = document.getElementById('stringsCardContainer');
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+
+        // Get Function Value
+        document.getElementById('getValueBtn').addEventListener('click', () => {
+            const functionName = prompt('Enter function name to evaluate:', lastFunctionNames[0] || '');
+            if (!functionName) return;
+
+            try {
+                const result = getFunctionValue(functionName);
+                if (result.success) {
+                    displayResult(
+                        `📊 ${result.functionName}() = ${JSON.stringify(result.result)} (${result.type}) [${result.time}]`,
+                        'success'
+                    );
+                } else {
+                    displayResult(`❌ ${result.functionName}() failed: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                displayResult(`❌ Error: ${e.message}`, 'error');
+            }
+        });
+
+        // Test All Functions
+        document.getElementById('testBtn').addEventListener('click', () => {
+            try {
+                const result = testAllFunctions();
+                if (result.allPassed) {
+                    displayResult(
+                        `✅ All ${result.total} functions passed! (${result.passed}/${result.total}) [Total: ${result.totalTime}, Avg: ${result.averageTime}]`,
+                        'success'
+                    );
+                } else {
+                    const failed = result.results.filter(r => !r.success);
+                    const failedNames = failed.map(r => r.functionName).join(', ');
+                    displayResult(
+                        `❌ ${result.passed}/${result.total} functions passed. Failed: ${failedNames}`,
+                        'error'
+                    );
+                }
+            } catch (e) {
+                displayResult(`❌ Error: ${e.message}`, 'error');
+            }
+        });
+
+        // Run All Functions
+        document.getElementById('runAllBtn').addEventListener('click', () => {
+            try {
+                const result = runAllFunctions();
+                displayResult(result.html, 'success');
+            } catch (e) {
+                displayResult(`❌ Error: ${e.message}`, 'error');
+            }
+        });
+
+        // Get Function Names
+        document.getElementById('getNamesBtn').addEventListener('click', () => {
+            const separator = document.getElementById('separatorInput').value;
+            try {
+                const names = getFunctionNames(separator);
+                displayResult(`📋 Function names: ${names}`, 'success');
+            } catch (e) {
+                displayResult(`❌ Error: ${e.message}`, 'error');
+            }
+        });
+
+        // Download Code
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            try {
+                downloadCode();
+                displayResult('💾 Code downloaded successfully!', 'success');
+            } catch (e) {
+                displayResult(`❌ Error: ${e.message}`, 'error');
+            }
+        });
+
+        // Copy
+        copyBtn.addEventListener('click', () => {
+            const code = outputEl.textContent;
+            if (code && !code.startsWith('// Error')) {
+                navigator.clipboard.writeText(code).then(() => {
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => copyBtn.textContent = '📋 Copy', 1500);
+                }).catch(() => {
+                    const range = document.createRange();
+                    range.selectNode(outputEl);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    document.execCommand('copy');
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => copyBtn.textContent = '📋 Copy', 1500);
+                });
+            }
+        });
+
+        // Generate on load
+        document.getElementById('generateBtn').addEventListener('click', generate);
+        window.addEventListener('load', generate);
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') generate();
+            });
+        });
+    </script>
+</body>
+</html>
