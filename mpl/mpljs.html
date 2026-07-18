@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MPL Playground</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="mpl-style.css">
+</head>
+<body>
+
+<h1>MPL Playground</h1>
+
+<p>
+Money Programming Language (MPL) is an esoteric programming language originally created as a
+personal project on 3 October 2024 by JOrE20. The reference JavaScript implementation is provided by
+<code>MPLJS.js</code>. It's more an esoteric language rather than a golfing language.
+<a href="mpl.html">Language documention</a>.
+</p>
+<p id="mpljs-error">ERROR: MPLJS.js not loaded. Check your internet connection. You can clone the site repository if you need to use this tool offline.</p>
+
+<script src="MPLJS.js"></script>
+
+<select name="examples" id="example-selector" style="float: right;">
+    <option value="">examples</option>
+    <option value='"Hello, World!'>Hello, World!
+	<option value='"Hello, World!"IK10t5I*3{{.3}I3.3'>Tutorial
+	<option value='K100L14U3,12&"Fizz"*22U5,12&"Buzz"*22U15,9/-!&22,5*I'>FizzBuzz
+	<option value='N'>Cat program
+	<option value='3{{.3}I3.3'>Full cat program
+	<option value='v{'>Shortest infinite loop
+	<option value='K1000000000LE*V'>Speed benchmark
+	<option value='K1000L14U2,12&"Foo"*22U3,12&"Fizz"*22U5,12&"Buzz"*22U7,12&"Bar"*22U210,9/-!&22,5*I'>FooFizzBuzzBar
+	
+    </option>
+</select>
+<p id="program-label">Program (0b/0c):</p>
+<textarea id="program" autofocus cols="120" rows="8"></textarea><br>
+<p>Input (one per line, escaping supported: \n \r \s \t \123 \x5F):</p>
+<textarea id="input" autofocus cols="120" rows="5"></textarea><br>
+<button id="go">Compile &amp; Run!</button><br>
+<p id="output-label">Output:</p>
+<textarea id="output" readonly cols="120" rows="8"></textarea><br>
+<p>Compiled JavaScript:</p>
+<textarea id="compiled-js" readonly cols="120" rows="7"></textarea><br>
+
+<script>
+    const program = document.getElementById("program");
+    const input = document.getElementById("input");
+	const output = document.getElementById("output");
+	const compiledJS = document.getElementById("compiled-js");
+	const exampleSelector = document.getElementById("example-selector");
+	const programLabel = document.getElementById("program-label");
+	const outputLabel = document.getElementById("output-label");
+    const go = document.getElementById("go");
+	
+	function parseInput(str) {
+	    const escapes = {
+		    'n': '\n',
+			'r': '\r',
+			's': ' ',
+			't': '	'
+		};
+	    return str
+		    .replace(/\\(\D)/gm, c => escapes[c] || c)
+			.replace(/\\(\d+)/gm, c => String.fromCodePoint(parseInt(c.slice(1))))
+			.replace(/\\x([0-9A-F]+)/gmi, c => String.fromCodePoint(parseInt(c.slice(1).toLowerCase(), 16)))
+			.split("\n");
+	}
+	
+	function updateSize() {
+	    let chars = 0;
+		for (let _ of program.value) chars++;
+	    programLabel.textContent = `Program (${new Blob([program.value]).size}b/${chars}c)`;
+	}
+	
+	program.addEventListener('input', () => {updateSize()});
+	
+	function formatTime(ms) {
+        if (ms === undefined || ms === null) return '0ms 0µs';
+        const us = Math.floor((ms % 1) * 1000);
+        const totalMs = Math.floor(ms);
+        const s = Math.floor(totalMs / 1000);
+        const m = Math.floor(s / 60);
+        const h = Math.floor(m / 60);
+        const d = Math.floor(h / 24);
+        const mon = Math.floor(d / 30);
+        const y = Math.floor(mon / 12);
+        
+        const parts = [];
+        if (y) parts.push(`${y}y`);
+        if (mon % 12) parts.push(`${mon % 12}mon`);
+        if (d % 30) parts.push(`${d % 30}d`);
+        if (h % 24) parts.push(`${h % 24}h`);
+        if (m % 60) parts.push(`${m % 60}m`);
+        if (s % 60) parts.push(`${s % 60}s`);
+        if (totalMs % 1000 || parts.length === 0) parts.push(`${totalMs % 1000}ms`);
+        parts.push(`${us}µs`);
+        
+        return parts.join(' ');
+    }
+	
+	go.addEventListener('click', () => {
+	    if (!window.MPLJS?.compile) {alert("MPLJS.js failed to load. Check your internet connection. You can clone the site repository if you need to use this tool offline."); return}
+		let code = program.value, inp = parseInput(input.value), compiled = window.MPLJS.compile(code);
+		compiledJS.value = compiled;
+		let start = performance.now();
+		output.value = compiled(inp || []).stdout;
+		let end = performance.now();
+		outputLabel.textContent = `Output (runtime: ${formatTime(end - start)}):`;
+	});
+	
+	exampleSelector.addEventListener('change', () => {
+        program.value = exampleSelector.value;
+		// Needed for speed benchmark to first show code
+		if (exampleSelector.value !== "v{") {setTimeout(() => {go.click(); updateSize()}, 20)} else updateSize();
+    });
+</script>
+
+</body>
+</html>
