@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Money Programming Language (MPL)</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="mpl-style.css">
+</head>
+<body>
+
+<h1>Money Programming Language (MPL)</h1>
+
+<p>
+Money Programming Language (MPL) is an esoteric programming language originally created as a
+personal project on 3 October 2024 by JOrE20. The reference JavaScript implementation is provided by
+<code>MPLJS.js</code>. It's more an esoteric language rather than a golfing language. The stack is just
+designed to save registers in like assembly, not to make a stack-based language. The original 2024
+design isn't ever had syscalls (they was just single-digits IO-releated operators), I originally designed syscalls
+for simple IO.
+<a href="mpljs.html">Open the MPL Playground</a>.
+Despite its simplicity, MPL programs can often be surprisingly short. The last version is v0.1.
+</p>
+
+<h2>Language overview</h2>
+
+<p>
+Programs are parsed one character at a time. Any unrecognized character is ignored.
+The language contains four general-purpose registers (R1&ndash;R4), a stack, and a collection of
+system calls.
+</p>
+
+<p>
+Registers R1, R2 and R3 are initialized to <code>0</code>.
+Register R4 is initialized to <code>1</code>.
+Characters with code points greater than 161 are interpreted as their code point minus 151.
+</p>
+
+<h2>Registers</h2>
+
+<table class="mpl-table">
+<thead>
+<tr>
+<th>Register</th>
+<th>Initial value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>0</td>
+<td>General-purpose register.</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>0</td>
+<td>General-purpose register. Most system calls use R2 as their primary operand.</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>0</td>
+<td>General-purpose register.</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>1</td>
+<td>General-purpose register. Used as the default increment/decrement value.</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Instruction set</h2>
+
+<table class="mpl-table">
+<thead>
+<tr>
+<th>Instruction</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr><td><code>$</code></td><td>Increase R1 by R4.</td></tr>
+<tr><td><code>-</code></td><td>Decrease R1 by R4.</td></tr>
+<tr><td><code>[...]</code></td><td>Execute the enclosed code exactly R2 times.</td></tr>
+<tr><td><code>{...}</code></td><td>Execute the enclosed code while R2 is non-zero.</td></tr>
+<tr><td><code>q...*</code></td><td>Loop with R2 taking every value from R1 through R3 (inclusive).</td></tr>
+<tr><td><code>L...*</code></td><td>Loop with R2 taking every value from 1 through R1 (inclusive).</td></tr>
+<tr><td><code>t...*</code></td><td>Loop with R2 taking every value from 0 through R1-1 (inclusive).</td></tr>
+<tr><td><code>@</code></td><td>Set R1 to 0.</td></tr>
+<tr><td><code>G...*</code></td><td>Execute the enclosed code only if R2 is non-zero.</td></tr>
+<tr><td><code>&amp;...*</code></td><td>Execute the enclosed code only if R2 is zero.</td></tr>
+<tr><td><code>Z...*</code></td><td>Execute the enclosed code only if R1 equals R2.</td></tr>
+<tr><td><code>T...*</code></td><td>Execute the enclosed code only if R1 does not equal R2.</td></tr>
+<tr><td><code>!</code></td><td>Copy R1 into R2.</td></tr>
+<tr><td><code>/</code></td><td>Copy R2 into R1.</td></tr>
+<tr><td><code>;</code></td><td>Copy R3 into R1.</td></tr>
+<tr><td><code>'</code></td><td>Copy R1 into R3.</td></tr>
+<tr><td><code>~</code></td><td>Copy R3 into R2.</td></tr>
+<tr><td><code>`</code></td><td>Copy R2 into R3.</td></tr>
+<tr><td><code>=</code></td><td>Copy R1 into R4.</td></tr>
+<tr><td><code>Q</code></td><td>Set R4 to 1.</td></tr>
+<tr><td><code>v</code></td><td>Load language major version to R1 and minor version to R2.</td></tr>
+<tr><td><code>W</code></td><td>Copy R2 into R4.</td></tr>
+<tr><td><code>E</code></td><td>Add R2 to R4.</td></tr>
+<tr><td><code>S</code></td><td>Subtract R2 from R4.</td></tr>
+<tr><td><code>N</code></td><td>Print the next command-line argument. R2 becomes 0 if nothing printed (no arguments left), otherwise 1.</td></tr>
+<tr><td><code>I</code></td><td>Output a newline.</td></tr>
+<tr><td><code>.</code></td><td>Shortcut for system call <code>0</code> (output the ASCII character whose code is stored in R2).</td></tr>
+<tr><td><code>V</code></td><td>Print the values of all four registers for debugging.</td></tr>
+<tr><td><code>P f u c</code></td><td>Read the next source character and store its Unicode code point into R1, R2, R3 or R4 respectively.</td></tr>
+<tr><td><code>K F U C</code></td><td>Read a decimal integer from the source and store it into R1, R2, R3 or R4 respectively.</td></tr>
+<tr><td><code>number</code></td><td>Invoke the system call with the specified numeric ID.</td></tr>
+<tr><td><code>"..."</code></td><td>Output the enclosed string literally.</td></tr>
+<tr><td><code>,</code></td><td>No operation. Useful for terminating numeric literals.</td></tr>
+<tr><td><code>?</code></td><td>Push all registers to stack as R1 R2 R3 R4.</td></tr>
+<tr><td><code>e</code></td><td>Pop all registers from stack as R1 R2 R3 R4.</td></tr>
+
+</tbody>
+</table>
+
+<h2>System calls</h2>
+
+<table class="mpl-table">
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr><td>0</td><td>Output ASCII</td><td>Output the ASCII character whose code is stored in R2. Equivalent to <code>.</code>.</td></tr>
+<tr><td>1</td><td>argc</td><td>Output the number of command-line arguments.</td></tr>
+<tr><td>2</td><td>Input length</td><td>Output the total length of the null-separated input.</td></tr>
+<tr><td>3</td><td>Read character</td><td>Read the next input character to R2.</td></tr>
+<tr><td>4</td><td>Random</td><td>Set R2 to a random integer in the range [0, R2).</td></tr>
+<tr><td>5</td><td>Output decimal</td><td>Output R2 as a decimal integer.</td></tr>
+<tr><td>6</td><td>Output base</td><td>Output R2 using base R3.</td></tr>
+<tr><td>7</td><td>Read decimal</td><td>Read a decimal integer from the input into R2.</td></tr>
+<tr><td>8</td><td>Read base</td><td>Read an integer in base R3 from the input into R2.</td></tr>
+<tr><td>9</td><td>Greatest common divisor</td><td>Replace R2 with <code>gcd(R2,R3)</code>.</td></tr>
+<tr><td>10</td><td>Multiply</td><td>Replace R2 with <code>R2 × R3</code>.</td></tr>
+<tr><td>11</td><td>Divide</td><td>Replace R2 with <code>floor(R2 / R3)</code>.</td></tr>
+<tr><td>12</td><td>Modulo</td><td>Replace R2 with <code>R2 mod R3</code>.</td></tr>
+<tr><td>13</td><td>Push R1</td><td>Push R1 onto the stack.</td></tr>
+<tr><td>14</td><td>Push R2</td><td>Push R2 onto the stack.</td></tr>
+<tr><td>15</td><td>Push R3</td><td>Push R3 onto the stack.</td></tr>
+<tr><td>16</td><td>Push R4</td><td>Push R4 onto the stack.</td></tr>
+<tr><td>17</td><td>Pop R1</td><td>Pop the top value from the stack into R1.</td></tr>
+<tr><td>18</td><td>Pop R2</td><td>Pop the top value from the stack into R2.</td></tr>
+<tr><td>19</td><td>Pop R3</td><td>Pop the top value from the stack into R3.</td></tr>
+<tr><td>20</td><td>Pop R4</td><td>Pop the top value from the stack into R4.</td></tr>
+<tr><td>21</td><td>Peek R1</td><td>Copy the top value of the stack into R1 without removing it.</td></tr>
+<tr><td>22</td><td>Peek R2</td><td>Copy the top value of the stack into R2 without removing it.</td></tr>
+<tr><td>23</td><td>Peek R3</td><td>Copy the top value of the stack into R3 without removing it.</td></tr>
+<tr><td>24</td><td>Peek R4</td><td>Copy the top value of the stack into R4 without removing it.</td></tr>
+<tr><td>25</td><td>Discard</td><td>Remove the top value from the stack.</td></tr>
+<tr><td>26</td><td>Duplicate</td><td>Duplicate the top value on the stack.</td></tr>
+<tr><td>27</td><td>Swap</td><td>Swap the top two values on the stack.</td></tr>
+<tr><td>28</td><td>Move</td><td>Move R2th element from top to R3th (0 = top) from stack.</td></tr>
+</tbody>
+</table>
+
+<h2>Examples</h2>
+<p>More examples are in <a href="mpljs.html">MPL Playground.</a></p>
+<h3>Hello, World!</h3>
+<pre><code>"Hello, World!"</code></pre>
+
+<h3>Cat program</h3>
+<pre><code>N</code></pre>
+
+<p>Alternatively, read and echo the input one character at a time:</p>
+
+<pre><code>3{.3</code></pre>
+
+<h3>Random number</h3>
+
+<pre><code>7,4,5</code></pre>
+
+<h3>FizzBuzz</h3>
+
+<pre><code>K100L14U3,12&amp;"Fizz"*22U5,12&amp;"Buzz"*22U15,9/-!&amp;22,5*I</code></pre>
+
+</body>
+</html>
